@@ -105,12 +105,11 @@ void* TCPMSG_listen_thread(void* ptr)
 
         conn_socket = accept(vars->socket, (struct sockaddr*) &clientaddr, &len);
         printf("SERVER function call accept(...) did return %d\n", conn_socket);
-        tcpmsg_connection_vars_t* connection =
+        tcpmsg_reader_vars_t* connection =
             calloc(sizeof(tcpmsg_connection_vars_t), 1);
         printf("SERVER memory address for new connection = %p\n", connection);
         ll_push_back(&vars->connections, connection);
         connection->socket = conn_socket;
-        connection->connections = &(vars->connections);
         pthread_create((pthread_t*) &connection->reader_thread_id, NULL, TCPMSG_reader_thread, connection);
 
     }

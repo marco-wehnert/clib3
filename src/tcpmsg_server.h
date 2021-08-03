@@ -17,7 +17,6 @@ typedef struct
 {
     int socket;
     pthread_t reader_thread_id;
-    linked_list_t* connections;
 } tcpmsg_connection_vars_t;
 
 int TCPMSG_create_server(tcpmsg_server_vars_t* vars);

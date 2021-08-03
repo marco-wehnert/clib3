@@ -11,7 +11,7 @@ void timer_start(timer_vars_t* ptr_timer_vars)
 {
     int result;
     result = pthread_create(&(ptr_timer_vars->thread_id), NULL, &timer_thread, ptr_timer_vars);
-    if (result != 0) handle_error(result);
+    if (result != 0) perror("pthread_create");
 }
 // END timer_start
 
@@ -22,10 +22,10 @@ void timer_stop(timer_vars_t* ptr_timer_vars)
     void* ptr_thread_result;
 
     result = pthread_cancel(ptr_timer_vars->thread_id);
-    if (result != 0) handle_error(result);
+    if (result != 0) perror("pthread_cancel");
 
     result = pthread_join(ptr_timer_vars->thread_id, &ptr_thread_result);
-    if (result != 0) handle_error(result);
+    if (result != 0) perror("pthread_join");
 }
 
 void* timer_thread(void* ptr)

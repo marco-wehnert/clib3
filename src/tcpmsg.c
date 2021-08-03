@@ -71,9 +71,6 @@ void* TCPMSG_reader_thread(void* ptr)
     {
         result = TCPMSG_read_message(thread_vars_ptr->socket, &tmp_buffer[0]);
     }
-//    printf("TCPMSG call free in reader thread, ptr = %p\n", ptr);
-//    free(ptr);
-//    printf("TCPMSG call free on address %p finished\n", ptr);
     printf("<<< void* TCPMSG_receiver_thread(void* ptr)\n");
     return (void*) 0;
 }
