@@ -1,44 +1,79 @@
 #include "tcpmsg.h"
+#include "utils.h"
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include "config.h"
 
 /**
  * Reads the given number of bytes
  */
-void TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)
+int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)
 {
-    int bytes_read = 0;
-    int result = 0;
+    int bytes_read = 0; // Contains the sum of all data which had been received
+    int result = 1; // Contains the result from function read
+    int retval = 0; // Contains the return value of this function
 
-    while (bytes_read < n)
+    printf(">>> void TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)\n");
+    while (bytes_read < n && result > 0)
     {
         result = read(socket, buffer + bytes_read, n - bytes_read);
+        printf("TCPMSG function call read(...) did return %d, socket = %d\n", result, socket);
         if (result < 1)
         {
-            fprintf(stderr, "Read bytes from socket failed");
-            return;
+            printf("TCPMSG Leave function because read(...) "
+                    "did return a value < 1\n");
+            perror("read");
+            retval = result;
         }
-        bytes_read += result;
+        else
+        {
+            bytes_read += result;
+            retval = bytes_read;
+        }
     }
+
+    printf("<<< void TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)\n");
+    return retval;
 }
 
-void* TCPMSG_receiver_thread(void* ptr)
+int TCPMSG_read_message(int socket, uint8_t* buffer)
 {
-    tcpmsg_receiver_vars_t* thread_vars_ptr = ptr;
+    int result;
 
+    result = TCPMSG_read_bytes(socket, (void*) &buffer[0],
+            sizeof(tcpmsg_header_t));
+
+    if (result <= 0) return result;
+
+    tcpmsg_header_t* header_ptr = (tcpmsg_header_t*) buffer;
+
+    result = TCPMSG_read_bytes(socket,
+            (void*) &buffer[sizeof(tcpmsg_header_t)],
+            header_ptr->payload_length);
+
+    if (result <= 0) return result;
+    return result + sizeof(tcpmsg_header_t);
+}
+
+void* TCPMSG_reader_thread(void* ptr)
+{
+    int result = 1;
+    tcpmsg_reader_vars_t* thread_vars_ptr = ptr;
     uint8_t tmp_buffer[TCPMSG_MAX_MSG_SIZE];
-    while (1)
+
+    printf(">>> void* TCPMSG_receiver_thread(void* ptr)\n");
+
+    printf("TCPMSG pointer passed to thread 'TCPMSG_reader_thread' is %p\n", ptr);
+    memset(tmp_buffer, 0, TCPMSG_MAX_MSG_SIZE);
+
+    while (result > 0)
     {
-        TCPMSG_read_bytes(thread_vars_ptr->socket,
-                (void*) &tmp_buffer[0],
-                sizeof(tcpmsg_header_t));
-
-        tcpmsg_header_t* header_ptr = (tcpmsg_header_t*) tmp_buffer;
-
-        TCPMSG_read_bytes(thread_vars_ptr->socket,
-                (void*) &tmp_buffer[sizeof(tcpmsg_header_t)],
-                header_ptr->payload_length);
-
+        result = TCPMSG_read_message(thread_vars_ptr->socket, &tmp_buffer[0]);
     }
+//    printf("TCPMSG call free in reader thread, ptr = %p\n", ptr);
+//    free(ptr);
+//    printf("TCPMSG call free on address %p finished\n", ptr);
+    printf("<<< void* TCPMSG_receiver_thread(void* ptr)\n");
+    return (void*) 0;
 }

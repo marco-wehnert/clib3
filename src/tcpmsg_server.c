@@ -18,10 +18,9 @@ int TCPMSG_create_server(tcpmsg_server_vars_t* vars)
 {
     struct sockaddr_in serveraddr;
     int result;
-    
     printf(">>> int TCPMSG_create_server(tcpmsg_server_vars_t* vars)\n");
-    printf("SERVER port: %d\n", vars->port);
 
+    printf("SERVER port: %d\n", vars->port);
     vars->socket = socket(AF_INET, SOCK_STREAM, 0);
     printf("SERVER function call socket(...) did return %d\n", vars->socket);
     if (vars->socket == -1)
@@ -45,28 +44,29 @@ int TCPMSG_create_server(tcpmsg_server_vars_t* vars)
         return 2;
     }
 
-	pthread_create((pthread_t*) &vars->listen_thread, NULL, TCPMSG_listen_thread, vars);
+	pthread_create((pthread_t*) &vars->listen_thread_id, NULL, TCPMSG_listen_thread, vars);
+    usleep(10000);
     printf("<<< int TCPMSG_create_server(tcpmsg_server_vars_t* vars)\n");
     return 0;
 }
 
-void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self) 
+void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self)
 {
     void* result;
-    
+
     printf(">>> void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self)\n");
-    
-    if (self->listen_thread)
+
+    if (self->listen_thread_id)
     {
         printf("SERVER call function pthread_cancel\n");
-        pthread_cancel(self->listen_thread);
+        pthread_cancel(self->listen_thread_id);
         printf("SERVER call function pthread_join(...)\n");
-        pthread_join(self->listen_thread, &result);
+        pthread_join(self->listen_thread_id, &result);
         if (result == PTHREAD_CANCELED)
         {
             printf("SERVER listen thread had been cancelled\n");
         }
-        self->listen_thread = 0;
+        self->listen_thread_id = 0;
     }
     close(self->socket);
     self->socket = 0;
@@ -79,10 +79,9 @@ void* TCPMSG_listen_thread(void* ptr)
     int result;
     unsigned int len;
     struct sockaddr_in clientaddr;
-    //tcpmsg_connection_vars_t conn_vars;
     int conn_socket;
     bool run = true;
-    
+
     printf(">>> void* TCPMSG_listen_thread(void* ptr)\n");
     if (ptr == NULL)
     {
@@ -90,15 +89,14 @@ void* TCPMSG_listen_thread(void* ptr)
         printf("<<< void* TCPMSG_listen_thread(void* ptr)\n");
         return (void*)0;
     }
-    
+
     tcpmsg_server_vars_t* vars = (tcpmsg_server_vars_t*) ptr;
     printf("SERVER listen thread will listen on socket handle %d\n", vars->socket);
     while (run)
     {
-        errno = 0;
         result = listen(vars->socket, 5);
         printf("SERVER function call listen(...) did return %d\n", result);
-        if (errno) handle_error(errno);
+        if (errno) perror("listen");
         if (result != 0)
         {
             printf("<<< void* TCPMSG_listen_thread(void* ptr)\n");
@@ -107,6 +105,14 @@ void* TCPMSG_listen_thread(void* ptr)
 
         conn_socket = accept(vars->socket, (struct sockaddr*) &clientaddr, &len);
         printf("SERVER function call accept(...) did return %d\n", conn_socket);
+        tcpmsg_connection_vars_t* connection =
+            calloc(sizeof(tcpmsg_connection_vars_t), 1);
+        printf("SERVER memory address for new connection = %p\n", connection);
+        ll_push_back(&vars->connections, connection);
+        connection->socket = conn_socket;
+        connection->connections = &(vars->connections);
+        pthread_create((pthread_t*) &connection->reader_thread_id, NULL, TCPMSG_reader_thread, connection);
+
     }
     printf("<<< void* TCPMSG_listen_thread(void* ptr)\n");
 

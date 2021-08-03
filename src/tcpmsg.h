@@ -15,9 +15,11 @@ typedef struct
 {
     int socket;
 
-} tcpmsg_receiver_vars_t;
+
+} tcpmsg_reader_vars_t;
 
 
-void TCPMSG_read_bytes(int socket, void* buffer, unsigned int n);
+int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n);
+void* TCPMSG_reader_thread(void* ptr);
 
 #endif
