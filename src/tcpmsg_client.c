@@ -11,7 +11,7 @@
 
 #include "config.h"
 
-int TCPMSG_connect_client(tcpmsg_client_vars_t* self)
+int TCPMSG_connect_client(tcpmsg_reader_vars_t* self, char* server_ip, int port)
 {
     struct sockaddr_in serveraddr;
     int result;
@@ -30,8 +30,8 @@ int TCPMSG_connect_client(tcpmsg_client_vars_t* self)
 
     memset(&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
-    serveraddr.sin_addr.s_addr = inet_addr(self->server_ip);
-    serveraddr.sin_port = htons(self->server_port);
+    serveraddr.sin_addr.s_addr = inet_addr(server_ip);
+    serveraddr.sin_port = htons(port);
 
     result = connect(self->socket,
             (struct sockaddr*) &serveraddr,
@@ -41,24 +41,23 @@ int TCPMSG_connect_client(tcpmsg_client_vars_t* self)
     {
         fprintf(stderr, "Connect to server failed: ");
         perror(NULL);
-        return -2;
+        return -1;
     }
 
-    self->reader_vars.socket = self->socket;
-    pthread_create((pthread_t*) &self->reader_vars.reader_thread_id, NULL, TCPMSG_reader_thread, &self->reader_vars);
+    pthread_create((pthread_t*) &self->reader_thread_id, NULL, TCPMSG_reader_thread, self);
 
     return 0;
 }
 
-void TCPMSG_disconnect_client(tcpmsg_client_vars_t* self)
+void TCPMSG_disconnect_client(tcpmsg_reader_vars_t* self)
 {
     void* res;
     close(self->socket);
     self->socket = 0;
 
-    if (!self->reader_vars.finished)
+    if (!self->finished)
     {
-        pthread_cancel(self->reader_vars.reader_thread_id);
+        pthread_cancel(self->reader_thread_id);
     }
-    pthread_join(self->reader_vars.reader_thread_id, &res);
+    pthread_join(self->reader_thread_id, &res);
 }

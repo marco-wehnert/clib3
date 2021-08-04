@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "config.h"
+#include <arpa/inet.h>
 
 /**
  * Reads the given number of bytes. If there are not
@@ -46,6 +47,8 @@ int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)
 int TCPMSG_read_message(int socket, uint8_t* buffer)
 {
     int result;
+    int sync_pattern;
+    int payload_length;
     char string[3 * sizeof(tcpmsg_header_t)];
 
     memset(string, 0, 3 * sizeof(tcpmsg_header_t));
@@ -55,12 +58,27 @@ int TCPMSG_read_message(int socket, uint8_t* buffer)
     if (result <= 0) return result;
 
     tcpmsg_header_t* header_ptr = (tcpmsg_header_t*) buffer;
+
     bytes2hex((unsigned char*)buffer, sizeof(tcpmsg_header_t), string);
     printf("Received header: %s\n", string);
 
+    sync_pattern = ntohs(header_ptr->sync_pattern);
+    if (sync_pattern != 0x55AA)
+    {
+        printf("Error in sync pattern\n");
+        return -1;
+    }
+
+    payload_length = ntohl(header_ptr->payload_length);
+    if (payload_length > (TCPMSG_MAX_MSG_SIZE - sizeof(tcpmsg_header_t)))
+    {
+        printf("Payload length exceeds maximum size of payload\n");
+        return -1;
+    }
+
     result = TCPMSG_read_bytes(socket,
             (void*) &buffer[sizeof(tcpmsg_header_t)],
-            header_ptr->payload_length);
+            payload_length);
 
     if (result <= 0) return result;
     return result + sizeof(tcpmsg_header_t);
@@ -72,15 +90,12 @@ void* TCPMSG_reader_thread(void* ptr)
     tcpmsg_reader_vars_t* thread_vars_ptr = ptr;
     uint8_t tmp_buffer[TCPMSG_MAX_MSG_SIZE];
 
-//    printf(">>> void* TCPMSG_receiver_thread(void* ptr)\n");
-
-//    printf("TCPMSG pointer passed to thread 'TCPMSG_reader_thread' is %p\n", ptr);
     memset(tmp_buffer, 0, TCPMSG_MAX_MSG_SIZE);
 
     while (result > 0)
-    {
-        result = TCPMSG_read_message(thread_vars_ptr->socket, &tmp_buffer[0]);
-    }
-//    printf("<<< void* TCPMSG_receiver_thread(void* ptr)\n");
+        result = TCPMSG_read_message(
+                thread_vars_ptr->socket,
+                &tmp_buffer[0]);
+
     return (void*) 0;
 }
