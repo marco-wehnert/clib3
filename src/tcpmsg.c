@@ -63,7 +63,7 @@ int TCPMSG_read_message(int socket, uint8_t* buffer)
     printf("Received header: %s\n", string);
 
     sync_pattern = ntohs(header_ptr->sync_pattern);
-    if (sync_pattern != 0x55AA)
+    if (sync_pattern != SYNC_PATTERN)
     {
         printf("Error in sync pattern\n");
         return -1;
@@ -84,18 +84,47 @@ int TCPMSG_read_message(int socket, uint8_t* buffer)
     return result + sizeof(tcpmsg_header_t);
 }
 
+void set_tcpmsg_header(
+        tcpmsg_header_t* header, int msg_type, int payload_length)
+{
+    header->sync_pattern = htons(SYNC_PATTERN);
+    header->msg_type = htons(msg_type);
+    header->payload_length = htonl(payload_length);
+}
+
+int get_sync_pattern(tcpmsg_header_t* header)
+{
+    return ntohs(header->sync_pattern);
+}
+
+int get_payload_length(tcpmsg_header_t* header)
+{
+    return ntohl(header->payload_length);
+}
+
+int get_msg_type(tcpmsg_header_t* header)
+{
+    return htons(header->msg_type);
+}
+
 void* TCPMSG_reader_thread(void* ptr)
 {
     int result = 1;
-    tcpmsg_reader_vars_t* thread_vars_ptr = ptr;
+    tcpmsg_reader_vars_t* reader_vars = ptr;
     uint8_t tmp_buffer[TCPMSG_MAX_MSG_SIZE];
 
     memset(tmp_buffer, 0, TCPMSG_MAX_MSG_SIZE);
 
     while (result > 0)
+    {
         result = TCPMSG_read_message(
-                thread_vars_ptr->socket,
+                reader_vars,
                 &tmp_buffer[0]);
-
+        if (result > 0)
+        {
+            (*reader_vars->callback)(reader_vars, tmp_buffer);
+        }
+    }
+    reader_vars->finished = true;
     return (void*) 0;
 }

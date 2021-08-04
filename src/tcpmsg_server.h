@@ -10,7 +10,7 @@ typedef struct
     int port;
     linked_list_t connections;
     pthread_t listen_thread_id;
-
+    void (*callback)(struct tcpmsg_reader_vars_s *reader, uint8_t* buffer);
 } tcpmsg_server_vars_t;
 
 

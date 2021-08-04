@@ -9,4 +9,7 @@
 
 void bytes2hex(unsigned char* bytes, int size, char* string);
 
+#define ENTER_FUNC() printf(">>> %*s\n", -40, __func__)
+#define LEAVE_FUNC() printf("<<< %*s\n", -40, __func__)
+
 #endif

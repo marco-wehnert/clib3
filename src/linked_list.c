@@ -150,7 +150,6 @@ void ll_remove_all(linked_list_t* list, bool (*testfunc)(void* obj))
     while (element != NULL)
     {
         remove_it = (*testfunc)(element->object);
-        printf("Remove it %d\n", remove_it);
         // Need to store now the next element
         // because current element might be deleted
         next = element->next;

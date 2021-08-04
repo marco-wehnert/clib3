@@ -112,6 +112,20 @@ void TCPMSG_close_all_server_connections(tcpmsg_server_vars_t* self)
 
 }
 
+bool reader_has_finished(void* ptr)
+{
+    tcpmsg_reader_vars_t* reader = ptr;
+    return reader->finished;
+}
+
+void TCPMSG_remove_finished_threads(tcpmsg_server_vars_t* server_vars)
+{
+    linked_list_t* list = &server_vars->connections;
+
+    ll_remove_all(list, &reader_has_finished);
+}
+
+
 void* TCPMSG_listen_thread(void* ptr)
 {
     int result;
@@ -120,39 +134,32 @@ void* TCPMSG_listen_thread(void* ptr)
     int conn_socket;
     bool run = true;
 
-//    printf("    >>> void* TCPMSG_listen_thread(void* ptr)\n");
     if (ptr == NULL)
     {
-//        fprintf(stderr, "SERVER illegal argument value: ptr == NULL\n");
-//        printf("<<< void* TCPMSG_listen_thread(void* ptr)\n");
         return (void*)0;
     }
 
     tcpmsg_server_vars_t* self = (tcpmsg_server_vars_t*) ptr;
-//    printf("SERVER listen thread will listen on socket handle %d\n", self->socket);
     while (run)
     {
         result = listen(self->socket, 5);
-//        printf("SERVER function call listen(...) did return %d\n", result);
         if (errno) perror("listen");
         if (result != 0)
         {
-  //          printf("<<< void* TCPMSG_listen_thread(void* ptr)\n");
             return (void*)1;
         }
 
         conn_socket = accept(self->socket, (struct sockaddr*) &clientaddr, &len);
-//        printf("SERVER function call accept(...) did return %d\n", conn_socket);
         tcpmsg_reader_vars_t* connection =
             calloc(sizeof(tcpmsg_reader_vars_t), 1);
-//        printf("SERVER memory address for new connection = %p\n", connection);
         ll_push_back(&self->connections, connection);
         connection->socket = conn_socket;
         connection->finished = false;
+        connection->callback = self->callback;
         pthread_create((pthread_t*) &connection->reader_thread_id, NULL, TCPMSG_reader_thread, connection);
 
+        TCPMSG_remove_finished_threads(self);
     }
-//    printf("<<< void* TCPMSG_listen_thread(void* ptr)\n");
 
     return (void*)0;
 }
