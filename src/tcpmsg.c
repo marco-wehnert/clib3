@@ -46,13 +46,17 @@ int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)
 int TCPMSG_read_message(int socket, uint8_t* buffer)
 {
     int result;
+    char string[3 * sizeof(tcpmsg_header_t)];
 
+    memset(string, 0, 3 * sizeof(tcpmsg_header_t));
     result = TCPMSG_read_bytes(socket, (void*) &buffer[0],
             sizeof(tcpmsg_header_t));
 
     if (result <= 0) return result;
 
     tcpmsg_header_t* header_ptr = (tcpmsg_header_t*) buffer;
+    bytes2hex((unsigned char*)buffer, sizeof(tcpmsg_header_t), string);
+    printf("Received header: %s\n", string);
 
     result = TCPMSG_read_bytes(socket,
             (void*) &buffer[sizeof(tcpmsg_header_t)],

@@ -7,4 +7,6 @@
 // #define handle_error(en) \ //
 //    do { errno = en; perror(NULL); exit(EXIT_FAILURE); } while (0)
 
+void bytes2hex(unsigned char* bytes, int size, char* string);
+
 #endif
