@@ -2,6 +2,7 @@
 #define __tcpmsg_h__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <pthread.h>
 
 typedef struct
@@ -15,6 +16,7 @@ typedef struct
 {
     int socket;
     pthread_t reader_thread_id;
+    bool finished;
 } tcpmsg_reader_vars_t;
 
 int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n);

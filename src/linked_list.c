@@ -1,7 +1,7 @@
 #include "linked_list.h"
 #include <stdlib.h>
 #include <string.h> // memset
-//#include <stdio.h> // printf
+#include <stdio.h> // printf
 
 void ll_init(linked_list_t* list)
 {
@@ -19,6 +19,7 @@ void ll_clear(linked_list_t* list)
         free(element);
         element = next;
     }
+    list->count = 0;
 }
 
 void ll_push_front(linked_list_t* list, void* object)
@@ -122,6 +123,67 @@ void* ll_pop_front(linked_list_t* list)
 
     return object;
 }
+
+void ll_remove_all(linked_list_t* list, bool (*testfunc)(void* obj))
+{
+    list_element_t* element;
+    bool remove_it;
+    list_element_t* next;
+
+    if (list->count == 0)
+    {
+        return;
+    }
+
+    if (list->count == 1)
+    {
+        remove_it = (*testfunc)(list->front->object);
+        if (remove_it)
+        {
+            ll_clear(list);
+            return;
+        }
+
+    }
+
+    element = list->front;
+    while (element != NULL)
+    {
+        remove_it = (*testfunc)(element->object);
+        printf("Remove it %d\n", remove_it);
+        // Need to store now the next element
+        // because current element might be deleted
+        next = element->next;
+
+        if (remove_it)
+        {
+            // There are three cases:
+            // 1. It is the first element
+            // 2. It is the last element
+            // 3. It is a element in the middle
+            if (list->front == element)
+            {
+                list->front = next;
+                next->prev = NULL;
+            }
+            else if(list->back == element)
+            {
+                list->back = element->prev;
+                element->prev->next = NULL;
+            }
+            else
+            {
+                element->prev->next = next;
+                next->prev = element->prev;
+            }
+            free(element);
+            list->count--;
+        }
+
+        element = next;
+    }
+}
+
 
 void ll_remove(linked_list_t* list, void* object)
 {

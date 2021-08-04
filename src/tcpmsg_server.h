@@ -13,13 +13,9 @@ typedef struct
 
 } tcpmsg_server_vars_t;
 
-typedef struct
-{
-    int socket;
-    pthread_t reader_thread_id;
-} tcpmsg_connection_vars_t;
 
 int TCPMSG_create_server(tcpmsg_server_vars_t* vars);
+void TCPMSG_close_all_server_connections(tcpmsg_server_vars_t* self);
 void TCPMSG_shutdown_server(tcpmsg_server_vars_t* vars);
 void* TCPMSG_listen_thread(void*);
 
