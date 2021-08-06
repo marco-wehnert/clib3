@@ -12,4 +12,7 @@ void bytes2hex(unsigned char* bytes, int size, char* string);
 #define ENTER_FUNC() printf(">>> %*s\n", -40, __func__)
 #define LEAVE_FUNC() printf("<<< %*s\n", -40, __func__)
 
+
+#define LOG(x) printf("%*s%*s%s\n", -20, __FILE__, -40, __func__, x)
+
 #endif

@@ -21,15 +21,10 @@ int TCPMSG_create_server(tcpmsg_server_vars_t* self)
     struct sockaddr_in serveraddr;
     int enable = 1;
     int result;
-//    printf(">>> int TCPMSG_create_server(tcpmsg_server_vars_t* self)\n");
-
-//    printf("SERVER port: %d\n", self->port);
     self->socket = socket(AF_INET, SOCK_STREAM, 0);
-//    printf("SERVER function call socket(...) did return %d\n", self->socket);
     if (self->socket == -1)
     {
         fprintf(stderr, "SERVER socket creation failed\n");
-//        printf("<<< int TCPMSG_create_server(tcpmsg_server_vars_t* self)\n");
         return 1;
     }
     //setsockopt(self->socket, SOL_SOCKET, SO_REUSEPORT, &reusePort, sizeof(reusePort));
@@ -44,20 +39,15 @@ int TCPMSG_create_server(tcpmsg_server_vars_t* self)
     serveraddr.sin_port = htons(self->port);
 
     result = bind(self->socket, (struct sockaddr*) &serveraddr, sizeof(serveraddr));
-//    printf("SERVER function call bind(...) did return %d\n", result);
     if (result != 0)
     {
         fprintf(stderr, "SERVER bind socket failed: ");
         perror(NULL);
-//        printf("<<< int TCPMSG_create_server(tcpmsg_server_vars_t* self)\n");
         return 2;
     }
 
 	pthread_create((pthread_t*) &self->listen_thread_id, NULL, TCPMSG_listen_thread, self);
-    // We need to wait until server is ready to listen for
-    // new connections.
     usleep(10000);
-//    printf("<<< int TCPMSG_create_server(tcpmsg_server_vars_t* self)\n");
     return 0;
 }
 
@@ -65,18 +55,11 @@ void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self)
 {
     void* result;
 
-    //printf(">>> void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self)\n");
 
     if (self->listen_thread_id)
     {
-        //printf("SERVER call function pthread_cancel\n");
         pthread_cancel(self->listen_thread_id);
-        //printf("SERVER call function pthread_join(...)\n");
         pthread_join(self->listen_thread_id, &result);
-//        if (result == PTHREAD_CANCELED)
-//        {
-//            printf("SERVER listen thread had been cancelled\n");
-//        }
         self->listen_thread_id = 0;
     }
     close(self->socket);
@@ -84,7 +67,6 @@ void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self)
 
     TCPMSG_close_all_server_connections(self);
 
-//    printf("<<< void TCPMSG_shutdown_server(tcpmsg_server_vars_t* self)\n");
 }
 
 void TCPMSG_close_all_server_connections(tcpmsg_server_vars_t* self)
@@ -92,14 +74,15 @@ void TCPMSG_close_all_server_connections(tcpmsg_server_vars_t* self)
     void* result;
     list_element_t* list_element;
     tcpmsg_reader_vars_t* connection;
-    //printf("Clean up connection list\n");
-    //printf("Number of connections in list: %d\n", self->connections.count);
     list_element = self->connections.front;
     while (list_element)
     {
         connection = list_element->object;
         if (!connection->finished)
         {
+            printf("Cancel reader thread with id %ld\n",
+                    connection->reader_thread_id);
+
             pthread_cancel(connection->reader_thread_id);
         }
         pthread_join(connection->reader_thread_id, &result);
@@ -107,7 +90,6 @@ void TCPMSG_close_all_server_connections(tcpmsg_server_vars_t* self)
         list_element = list_element->next;
     }
 
-    //printf("Call function ll_clear(...)\n");
     ll_clear(&self->connections);
 
 }
@@ -120,9 +102,40 @@ bool reader_has_finished(void* ptr)
 
 void TCPMSG_remove_finished_threads(tcpmsg_server_vars_t* server_vars)
 {
-    linked_list_t* list = &server_vars->connections;
+    linked_list_t* p_conn_list = &server_vars->connections;
+    linked_list_t  finished_conn_list;
+    list_element_t* p_element = NULL;
+    tcpmsg_reader_vars_t* p_reader = NULL;
+    void* result;
 
-    ll_remove_all(list, &reader_has_finished);
+    memset(&finished_conn_list, 0, sizeof(linked_list_t));
+
+    // 1. Collect all readers which finished
+    p_element = p_conn_list->front;
+    while (p_element != NULL)
+    {
+        p_reader = p_element->object;
+        if (p_reader->finished)
+        {
+            ll_push_back(&finished_conn_list, p_reader);
+        }
+        p_element = p_element->next;
+    }
+
+    // 2. Remove all finished readers from connection list
+    ll_remove_all(p_conn_list, &reader_has_finished);
+
+    // 3. join threads and delete reader object
+    p_element = finished_conn_list.front;
+    while (p_element != NULL)
+    {
+        p_reader = p_element->object;
+        pthread_join(p_reader->reader_thread_id, &result);
+        free(p_reader);
+        p_element = p_element->next;
+    }
+
+    ll_clear(&finished_conn_list);
 }
 
 
@@ -132,20 +145,15 @@ void* TCPMSG_listen_thread(void* ptr)
     unsigned int len;
     struct sockaddr_in clientaddr;
     int conn_socket;
-    bool run = true;
-
-    if (ptr == NULL)
-    {
-        return (void*)0;
-    }
 
     tcpmsg_server_vars_t* self = (tcpmsg_server_vars_t*) ptr;
-    while (run)
+    printf("Started listen thread with id %ld\n", self->listen_thread_id);
+    while (1)
     {
         result = listen(self->socket, 5);
-        if (errno) perror("listen");
         if (result != 0)
         {
+            perror("listen");
             return (void*)1;
         }
 

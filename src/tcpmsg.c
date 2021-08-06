@@ -22,15 +22,14 @@ int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)
     int result = 1; // Contains the result from function read
     int retval = 0; // Contains the return value of this function
 
-//    printf(">>> void TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)\n");
+    ENTER_FUNC();
+
     while (bytes_read < n && result > 0)
     {
         result = read(socket, buffer + bytes_read, n - bytes_read);
-        printf("    TCPMSG function call read(...) did return %d, socket = %d\n", result, socket);
+        printf("Result from reading socket %d is %d\n", socket, result);
         if (result < 1)
         {
-//            printf("TCPMSG Leave function because read(...) "
-//                    "did return a value < 1\n");
             retval = result;
         }
         else
@@ -40,22 +39,27 @@ int TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)
         }
     }
 
-//    printf("<<< void TCPMSG_read_bytes(int socket, void* buffer, unsigned int n)\n");
+    LEAVE_FUNC();
     return retval;
 }
 
 int TCPMSG_read_message(int socket, uint8_t* buffer)
 {
-    int result;
-    int sync_pattern;
-    int payload_length;
+    int result = 0;
+    int sync_pattern = 0;
+    int payload_length = 0;
+    int total_received = 0;
     char string[3 * sizeof(tcpmsg_header_t)];
 
+    ENTER_FUNC();
+
     memset(string, 0, 3 * sizeof(tcpmsg_header_t));
+    
     result = TCPMSG_read_bytes(socket, (void*) &buffer[0],
             sizeof(tcpmsg_header_t));
 
     if (result <= 0) return result;
+    total_received = result;
 
     tcpmsg_header_t* header_ptr = (tcpmsg_header_t*) buffer;
 
@@ -66,6 +70,7 @@ int TCPMSG_read_message(int socket, uint8_t* buffer)
     if (sync_pattern != SYNC_PATTERN)
     {
         printf("Error in sync pattern\n");
+        LEAVE_FUNC();
         return -1;
     }
 
@@ -73,15 +78,23 @@ int TCPMSG_read_message(int socket, uint8_t* buffer)
     if (payload_length > (TCPMSG_MAX_MSG_SIZE - sizeof(tcpmsg_header_t)))
     {
         printf("Payload length exceeds maximum size of payload\n");
+        LEAVE_FUNC();
         return -1;
     }
 
-    result = TCPMSG_read_bytes(socket,
+    if (payload_length > 0)
+    {
+        result = TCPMSG_read_bytes(socket,
             (void*) &buffer[sizeof(tcpmsg_header_t)],
             payload_length);
 
-    if (result <= 0) return result;
-    return result + sizeof(tcpmsg_header_t);
+        LEAVE_FUNC();
+        if (result <= 0) return result;
+        total_received += result;
+    }
+
+    LEAVE_FUNC();
+    return total_received;
 }
 
 void set_tcpmsg_header(
@@ -113,18 +126,21 @@ void* TCPMSG_reader_thread(void* ptr)
     tcpmsg_reader_vars_t* reader_vars = ptr;
     uint8_t tmp_buffer[TCPMSG_MAX_MSG_SIZE];
 
+    printf("Started reader thread with id %ld\n", reader_vars->reader_thread_id);
+
     memset(tmp_buffer, 0, TCPMSG_MAX_MSG_SIZE);
 
     while (result > 0)
     {
         result = TCPMSG_read_message(
-                reader_vars,
+                reader_vars->socket,
                 &tmp_buffer[0]);
         if (result > 0)
         {
             (*reader_vars->callback)(reader_vars, tmp_buffer);
         }
     }
+    printf("Return from reader thread with id %ld\n", reader_vars->reader_thread_id);
     reader_vars->finished = true;
     return (void*) 0;
 }
