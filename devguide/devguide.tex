@@ -1,0 +1,64 @@
+\documentclass{stddoc}
+
+\title{CLIB3 Developers Guide}
+\author{Marco Wehnert}
+
+\begin{document}
+
+\maketitle
+
+\section{Coding Style}
+	If nothing else is defined the coding style will be the same like
+	in the Linux kernel. (see \url{https://www.kernel.org/doc/html/latest/process/coding-style.html})
+
+
+\section{Naming Convention}
+
+	\begin{itemize}
+		\item All items shall start with CL3\_
+		\item Don't create typedefs for structues (There are a few exceptions
+			which are mentioned in the coding style for the Linux kernel).
+	\end{itemize}
+
+
+\section{Object-oriented programming in C}
+	Sometimes it is helpful to design a software similar to object-oriented
+	style. The problem is that this is not possible only using C. But ...
+	we can implement a "pseudo object-oriented" model. To do so we
+	just put all member variables of the class in a structure and pass
+	the structure as first argument in a function. And voila, we have
+	an object-oriented implementation only using C.
+	In such cases the function names should
+	start with the name of the structure followed by the function name
+	to avoid naming conflicts for functions.
+	Functions which are not relatedd to class will be not affeted by this
+	rule.
+
+
+\section{Configuration}
+	There has to be the possibility to configure the components of this
+	library (using for example a \#define). For this each header file will
+	include the file "cl3config.h"
+
+\section{Components}
+\subsection{TCP Message Protocol}
+	Per definition TCP is a stream based protocol, there is no mechanism
+	to determine where one message ends and where the next message begins.
+	This mechanism needs to be implemented in the application itself.
+	The implementation here provides such a mechanism.
+
+	A message is defined according to table x.
+
+	\begin{longtable}{|L{1.5cm}|L{0.8cm}|L{0.8cm}|L{9cm}|L{1.8cm}|}
+		\caption{Header format of TCP message} \\
+		\hline
+		\textbf{Item} & Pos. & Len. & Description & Values \\
+		\hline \hline
+		Sync pattern & 0 & 2 & Sync pattern & 0xAA \\
+		\hline
+	\end{longtable}
+
+	\begin{itemize}
+		\item Prefix for all items is \code{CL3\_TcpConnection\_}
+	\end{itemize}
+\end{document}
